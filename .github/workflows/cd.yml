@@ -1,10 +1,33 @@
 name: CD - Deploy to AWS Lambda from S3
 
 on:
-  workflow_run:
-    workflows: ["CI - Build React & Upload to S3"]
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      aws-region:
+        description: "AWS Region"
+        required: true
+        type: string
+      s3-bucket:
+        description: "S3 Bucket Name"
+        required: true
+        type: string
+      lambda-function-name:
+        description: "Lambda Function Name"
+        required: true
+        type: string
+      s3-key:
+        description: "S3 Key for Deployment Package"
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -16,11 +39,16 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ inputs.aws-region }}
 
       - name: Deploy Lambda from S3
         run: |
           aws lambda update-function-code \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --s3-bucket ${{ secrets.S3_BUCKET }} \
-            --s3-key deployment-package.zip
+            --function-name ${{ inputs.lambda-function-name }} \
+            --s3-bucket ${{ inputs.s3-bucket }} \
+            --s3-key ${{ inputs.s3-key }}
+
+      - name: Verify Lambda Deployment
+        run: |
+          aws lambda get-function --function-name ${{ inputs.lambda-function-name }}
+

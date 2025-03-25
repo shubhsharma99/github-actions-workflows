@@ -18,10 +18,7 @@ on:
         description: "Lambda Function Name"
         required: true
         type: string
-      s3-key:
-        description: "S3 Key for Deployment Package"
-        required: true
-        type: string
+   
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -52,7 +49,7 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ inputs.lambda-function-name }} \
             --s3-bucket ${{ inputs.s3-bucket }} \
-            --s3-key ${{ inputs.s3-key }}
+           
 
       - name: Wait for Lambda Update to Apply
         run: sleep 10  # Optional: Wait 10 seconds

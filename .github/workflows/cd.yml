@@ -1,6 +1,9 @@
 name: CD - Deploy to AWS Lambda from S3
 
 on:
+  push:
+    tags:
+      - "v*"  # Triggers on any versioned tag like v1.0.0, v2.3.1, etc.
   workflow_call:
     inputs:
       aws-region:
@@ -26,7 +29,6 @@ on:
         required: true
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -34,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -43,12 +48,18 @@ jobs:
 
       - name: Deploy Lambda from S3
         run: |
+          set -e  # Stop on error if any command fails
           aws lambda update-function-code \
             --function-name ${{ inputs.lambda-function-name }} \
             --s3-bucket ${{ inputs.s3-bucket }} \
             --s3-key ${{ inputs.s3-key }}
 
+      - name: Wait for Lambda Update to Apply
+        run: sleep 10  # Optional: Wait 10 seconds
+
       - name: Verify Lambda Deployment
         run: |
           aws lambda get-function --function-name ${{ inputs.lambda-function-name }}
 
+      - name: Output Release Tag
+        run: echo "Deployed Release Tag:$GITHUB_REF_NAME"

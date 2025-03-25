@@ -3,60 +3,37 @@ name: CD - Deploy to AWS Lambda from S3
 on:
   push:
     tags:
-      - "v*"  # Triggers on any versioned tag like v1.0.0, v2.3.1, etc.
-  workflow_call:
-    inputs:
-      aws-region:
-        description: "AWS Region"
-        required: true
-        type: string
-      s3-bucket:
-        description: "S3 Bucket Name"
-        required: true
-        type: string
-      lambda-function-name:
-        description: "Lambda Function Name"
-        required: true
-        type: string
-   
-    secrets:
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
-
-permissions:
-  contents: read
+      - "v*"  # Triggers when a new release tag is pushed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v3
+
+      - name: Extract Version from Tag
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ inputs.aws-region }}
+          aws-region: "us-east-1"  # Change as needed
 
       - name: Deploy Lambda from S3
         run: |
-          set -e  # Stop on error if any command fails
           aws lambda update-function-code \
-            --function-name ${{ inputs.lambda-function-name }} \
-            --s3-bucket ${{ inputs.s3-bucket }} \
-           
-
-      - name: Wait for Lambda Update to Apply
-        run: sleep 10  # Optional: Wait 10 seconds
+            --function-name my-lambda-function \
+            --s3-bucket my-deployment-bucket \
+            --s3-key releases/${{ env.RELEASE_VERSION }}.zip
 
       - name: Verify Lambda Deployment
         run: |
-          aws lambda get-function --function-name ${{ inputs.lambda-function-name }}
-
-      - name: Output Release Tag
-        run: echo "Deployed Release Tag:$GITHUB_REF_NAME"
+          aws lambda get-function --function-name my-lambda-function

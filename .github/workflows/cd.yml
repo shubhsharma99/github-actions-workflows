@@ -1,39 +1,54 @@
 name: CD - Deploy to AWS Lambda from S3
 
 on:
-  push:
-    tags:
-      - "v*"  # Triggers when a new release tag is pushed
+  workflow_call:
+    inputs:
+      aws-region:
+        description: "AWS Region"
+        required: true
+        type: string
+      s3-bucket:
+        description: "S3 Bucket Name"
+        required: true
+        type: string
+      lambda-function-name:
+        description: "Lambda Function Name"
+        required: true
+        type: string
+      s3-key:
+        description: "S3 Key for Deployment Package"
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write
-      contents: read
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Extract Version from Tag
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: "us-east-1"  # Change as needed
+          aws-region: ${{ inputs.aws-region }}
 
       - name: Deploy Lambda from S3
         run: |
           aws lambda update-function-code \
-            --function-name my-lambda-function \
-            --s3-bucket my-deployment-bucket \
-            --s3-key releases/${{ env.RELEASE_VERSION }}.zip
+            --function-name ${{ inputs.lambda-function-name }} \
+            --s3-bucket ${{ inputs.s3-bucket }} \
+            --s3-key ${{ inputs.s3-key }}
 
       - name: Verify Lambda Deployment
         run: |
-          aws lambda get-function --function-name my-lambda-function
+          aws lambda get-function --function-name ${{ inputs.lambda-function-name }}
+

@@ -13,6 +13,10 @@ on:
         required: false
         type: string
         default: '18'
+      s3-key:
+        required: false
+        type: string
+        default: 'deployment-package.zip'
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -34,13 +38,16 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install --production
+        run: npm ci --omit=dev  # Optimized for production
 
-      - name: Build React App
+      - name: Build Application
         run: npm run build
 
-      - name: Zip Deployment Package
-        run: zip -r deployment-package.zip build/
+      - name: Create Deployment Package
+        run: |
+          mkdir -p deployment
+          cp -r build/* deployment/
+          zip -r ${{ inputs.s3-key }} deployment/
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -51,4 +58,66 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 cp deployment-package.zip s3://${{ inputs.s3-bucket }}/deployment-package.zip
+          aws s3 cp ${{ inputs.s3-key }} s3://${{ inputs.s3-bucket }}/
+
+
+
+
+
+# name: Reusable CI - Build and Upload to S3
+
+# on:
+#   workflow_call:
+#     inputs:
+#       aws-region:
+#         required: true
+#         type: string
+#       s3-bucket:
+#         required: true
+#         type: string
+#       node-version:
+#         required: false
+#         type: string
+#         default: '18'
+#     secrets:
+#       AWS_ACCESS_KEY_ID:
+#         required: true
+#       AWS_SECRET_ACCESS_KEY:
+#         required: true
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout Repository
+#         uses: actions/checkout@v3
+
+#       - name: Set Up Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: ${{ inputs.node-version }}
+#           cache: 'npm'
+
+#       - name: Install Dependencies
+#         run: npm install --production
+
+#       - name: Build React App
+#         run: npm run build
+
+#       - name: Zip Deployment Package
+#         run: zip -r deployment-package.zip build/
+
+#       - name: Configure AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ inputs.aws-region }}
+
+#       - name: Upload to S3
+#         run: |
+#           aws s3 cp deployment-package.zip s3://${{ inputs.s3-bucket }}/deployment-package.zip
+
+
+
